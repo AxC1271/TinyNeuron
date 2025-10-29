@@ -10,7 +10,7 @@
 
 `default_nettype none
 
-module tt_um_tiny_pong (
+module tt_um_axc1271_tinypong (
     input  wire [7:0] ui_in,    // ui_in[0]=up, ui_in[1]=down
     output wire [7:0] uo_out,   // VGA output
     input  wire [7:0] uio_in,   // Unused
