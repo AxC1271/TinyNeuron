@@ -1,6 +1,6 @@
 # Tiny Tapeout project information
 project:
-  title:        "Tiny Pong"      # Project title
+  title:        "Tiny Pong"                             # Project title
   author:       "Andrew Chen"                           # Your name
   discord:      "andu_623"                              # Your discord username, for communication and automatically assigning you a Tapeout role (optional)
   description:  "VGA Display Driver for Pong Game"      # One line description of what your project does
