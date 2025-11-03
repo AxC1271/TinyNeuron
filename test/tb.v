@@ -81,11 +81,11 @@ module tb ();
     end
 
     // optional: monitor some outputs
-    always @(posedge clk) begin
-        // simple VGA signal monitor
-        if (uut.h_count == 0 && uut.v_count == 0)
-            $display("Frame start: Ball=(%0d,%0d), Paddle_y=%0d, HSYNC=%b, VSYNC=%b",
-                uut.ball_x, uut.ball_y, uut.paddle_y, uo_out[0], uo_out[1]);
-    end
+    // always @(posedge clk) begin
+    // simple VGA signal monitor
+    //    if (uut.h_count == 0 && uut.v_count == 0)
+    //       $display("Frame start: Ball=(%0d,%0d), Paddle_y=%0d, HSYNC=%b, VSYNC=%b",
+    //       uut.ball_x, uut.ball_y, uut.paddle_y, uo_out[0], uo_out[1]);
+    // end
    
 endmodule
