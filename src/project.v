@@ -1,3 +1,5 @@
+`timescale 1ns / 1ps
+
 /*
  * Copyright (c) 2024 Andrew Chen
  * SPDX-License-Identifier: Apache-2.0
@@ -83,22 +85,14 @@ module tt_um_axc1271_tinypong (
     
     always @(posedge clk) begin
         if (!rst_n) begin
-            debounce_counter <= 0;
             btn_up <= 0;
             btn_down <= 0;
-        end else begin
-            // sample buttons at start of frame
-            if (h_count == 0 && v_count == 0) begin
-                if (debounce_counter == 15) begin
-                    btn_up <= btn_up_raw;
-                    btn_down <= btn_down_raw;
-                    debounce_counter <= 0;
-                end else begin
-                    debounce_counter <= debounce_counter + 1;
-                end
-            end
+        end else if (h_count == 0 && v_count == 0) begin
+            btn_up <= btn_up_raw;
+            btn_down <= btn_down_raw;
         end
     end
+
     
     // paddle (left side)
     localparam PADDLE_X = 20;
@@ -107,11 +101,16 @@ module tt_um_axc1271_tinypong (
     reg [8:0] paddle_y;  // 0-479
     
     // ball
-    localparam BALL_SIZE = 8;
-    reg [9:0] ball_x;  // 0-639
-    reg [8:0] ball_y;  // 0-479
+    localparam BALL_SIZE = 16;
+    reg signed [9:0] ball_x;  // 0-639
+    reg signed [8:0] ball_y;  // 0-479
     reg signed [2:0] ball_dx;
     reg signed [2:0] ball_dy;  
+    
+    reg [9:0] next_ball_x;
+    reg [8:0] next_ball_y;
+    reg signed [2:0] next_ball_dx;
+    reg signed [2:0] next_ball_dy;
     
     // speed control (update every N frames)
     reg [2:0] speed_counter;
@@ -121,71 +120,73 @@ module tt_um_axc1271_tinypong (
         if (!rst_n) begin
             paddle_y <= 240 - PADDLE_HEIGHT/2;  // center
         end else begin
-            // Update once per frame
             if (h_count == 0 && v_count == 0) begin
                 if (btn_up && paddle_y > 0) begin
-                    paddle_y <= paddle_y - 3;
+                    paddle_y <= paddle_y - 4;
                 end else if (btn_down && paddle_y < (480 - PADDLE_HEIGHT)) begin
-                    paddle_y <= paddle_y + 3;
+                    paddle_y <= paddle_y + 4;
                 end
             end
         end
     end
-    
+
     // physics for pong ball
     always @(posedge clk) begin
         if (!rst_n) begin
             ball_x <= 320;  
             ball_y <= 240;  
-            ball_dx <= 2;   
-            ball_dy <= 1;   
+            ball_dx <= 6;   
+            ball_dy <= 3;   
             speed_counter <= 0;
         end else begin
-            // update ball position every 2 frames (slow it down)
             if (h_count == 0 && v_count == 0) begin
                 if (speed_counter == 1) begin
                     speed_counter <= 0;
                     
-                    // move ball
-                    ball_x <= ball_x + {{7{ball_dx[2]}}, ball_dx};  
-                    ball_y <= ball_y + {{6{ball_dy[2]}}, ball_dy};
+                    // calculate next position using SIGNED arithmetic
+                    next_ball_x = ball_x + {{7{ball_dx[2]}}, ball_dx};
+                    next_ball_y = ball_y + {{6{ball_dy[2]}}, ball_dy};
+                    next_ball_dx = ball_dx;
+                    next_ball_dy = ball_dy;
                     
-                    // if we have collision with top/bottom walls, flip dy
-                    if (ball_y <= 0 || ball_y >= (480 - BALL_SIZE)) begin
-                        ball_dy <= -ball_dy;
+                    // top wall
+                    if (next_ball_y <= 0) begin
+                        next_ball_dy = -ball_dy;
+                        next_ball_y = 1;
+                    end
+                    // bottom wall
+                    else if (next_ball_y >= (480 - BALL_SIZE)) begin
+                        next_ball_dy = -ball_dy;
+                        next_ball_y = 479 - BALL_SIZE;
                     end
                     
-                    // collision with paddle should flip dx
-                    if (ball_x <= (PADDLE_X + PADDLE_WIDTH) && 
-                        ball_x >= PADDLE_X &&
-                        ball_y >= paddle_y && 
-                        ball_y <= (paddle_y + PADDLE_HEIGHT)) begin
-                        ball_dx <= -ball_dx;
-                        
-                        // add spin based on where ball hit paddle
-                        if (ball_y < (paddle_y + PADDLE_HEIGHT/3)) begin
-                            ball_dy <= -2;  // hit top → bounce up
-                        end else if (ball_y > (paddle_y + 2*PADDLE_HEIGHT/3)) begin
-                            ball_dy <= 2;   // hit bottom → bounce down
-                        end else begin
-                            ball_dy <= 0;   // hit middle → straight
-                        end
+                    // right wall (bounce)
+                    if (next_ball_x >= (640 - BALL_SIZE)) begin
+                        next_ball_dx = -ball_dx;
+                        next_ball_x = 639 - BALL_SIZE;
                     end
                     
-                    // ball went off right side → reset
-                    if (ball_x >= 640) begin
+                    // if it hits our paddle
+                    if (next_ball_x <= (PADDLE_X + PADDLE_WIDTH) && 
+                        ball_x > PADDLE_X &&  
+                        next_ball_y + BALL_SIZE > paddle_y && 
+                        next_ball_y < (paddle_y + PADDLE_HEIGHT)) begin
+                    
+                        next_ball_dx = -ball_dx;                 // reflect horizontally
+                        next_ball_x  = PADDLE_X + PADDLE_WIDTH;  // place just outside paddle
+                    end 
+                    
+                    // left wall - reset (missed paddle)
+                    if ($signed({1'b0, next_ball_x}) <= 0) begin
                         ball_x <= 320;
                         ball_y <= 240;
-                        ball_dx <= 2;
-                        ball_dy <= 1;
-                    end
-                    
-                    // ball hit left wall → reset
-                    if (ball_x <= 0) begin
-                        ball_x <= 320;
-                        ball_y <= 240;
-                        ball_dx <= 2;
-                        ball_dy <= 1;
+                        ball_dx <= 6;
+                        ball_dy <= 3;
+                    end else begin
+                        ball_x <= next_ball_x;
+                        ball_y <= next_ball_y;
+                        ball_dx <= next_ball_dx;
+                        ball_dy <= next_ball_dy;
                     end
                     
                 end else begin
@@ -238,29 +239,3 @@ module tt_um_axc1271_tinypong (
     wire _unused = &{ena, uio_in, ui_in[7:2], 1'b0};
 
 endmodule
-
-
-// Requirements:
-// 
-// Clock: 25.175 MHz (can use 25 MHz, close enough)
-//
-// Connections:
-//   ui_in[0] → up button   (active high)
-//   ui_in[1] → down button (active high)
-//   
-//   uo_out[0] → VGA HSYNC (pin 13)
-//   uo_out[1] → VGA VSYNC (pin 14)
-//   uo_out[3:2] → RED DAC → VGA RED (pin 1)
-//   uo_out[5:4] → GREEN DAC → VGA GREEN (pin 2)
-//   uo_out[7:6] → BLUE DAC → VGA BLUE (pin 3)
-//
-// Resistor DAC per color channel:
-//   Bit[1] ──[270Ω]──┬─── VGA Color Pin
-//   Bit[0] ──[560Ω]──┘
-//
-// Features:
-//   - Left paddle controlled by up/down buttons
-//   - Ball bounces off paddle, walls, and top/bottom
-//   - Ball resets when it goes off screen
-//   - Center dashed line
-//   - Simple physics with spin based on paddle hit location
