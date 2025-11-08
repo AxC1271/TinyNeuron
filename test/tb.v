@@ -5,14 +5,6 @@
    that can be driven / tested by the cocotb test.py.
 */
 module tb ();
-
-  // Dump the signals to a VCD file. You can view it with gtkwave or surfer.
-  initial begin
-    $dumpfile("tb.vcd");
-    $dumpvars(0, tb);
-    #1;
-  end
-
   // Wire up the inputs and outputs:
   reg clk;
    reg monitor_clk; // for viewing
@@ -85,10 +77,10 @@ module tb ();
     end
 
     // optional: monitor some outputs
-    always @(posedge monitor_clk) begin
+    // always @(posedge monitor_clk) begin
     // simple VGA signal monitor
-        $display("Frame start: Ball=(%0d,%0d), Paddle_y=%0d, HSYNC=%b, VSYNC=%b",
-        uut.ball_x, uut.ball_y, uut.paddle_y, uo_out[0], uo_out[1]);
-    end
+    //    $display("Frame start: Ball=(%0d,%0d), Paddle_y=%0d, HSYNC=%b, VSYNC=%b",
+    //    uut.ball_x, uut.ball_y, uut.paddle_y, uo_out[0], uo_out[1]);
+    // end
    
 endmodule
