@@ -15,6 +15,7 @@ module tb ();
 
   // Wire up the inputs and outputs:
   reg clk;
+   reg monitor_clk; // for viewing
   reg rst_n;
   reg ena;
   reg [7:0] ui_in;
@@ -50,6 +51,9 @@ module tb ();
     initial clk = 0;
     always #20 clk = ~clk;
 
+    initial monitor_clk = 0;
+    always #10000000 monitor_clk = ~monitor_clk;
+
     // manually reset
     initial begin
         rst_n = 0; // active low
@@ -62,30 +66,29 @@ module tb ();
 
     initial begin
         // wait a few frames
-        #1_000_000;
+        #20000000;
 
         // simulate pressing the up button
         ui_in[0] = 1;
-        #500_000;
+        #50000000;
         ui_in[0] = 0;
 
         // simulate pressing the down button
-        #1_000_000;
+        #1000000;
         ui_in[1] = 1;
-        #500_000;
+        #50000000;
         ui_in[1] = 0;
 
         // run for a while to let ball move
-        #5_000_000;
+        #100000000000;
         $stop;
     end
 
     // optional: monitor some outputs
-    // always @(posedge clk) begin
+    always @(posedge monitor_clk) begin
     // simple VGA signal monitor
-    //    if (uut.h_count == 0 && uut.v_count == 0)
-    //       $display("Frame start: Ball=(%0d,%0d), Paddle_y=%0d, HSYNC=%b, VSYNC=%b",
-    //       uut.ball_x, uut.ball_y, uut.paddle_y, uo_out[0], uo_out[1]);
-    // end
+        $display("Frame start: Ball=(%0d,%0d), Paddle_y=%0d, HSYNC=%b, VSYNC=%b",
+        uut.ball_x, uut.ball_y, uut.paddle_y, uo_out[0], uo_out[1]);
+    end
    
 endmodule
