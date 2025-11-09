@@ -153,7 +153,17 @@ module tt_um_axc1271_tinypong (
     wire [1:0] out_green = video_active ? green : 2'b00;
     wire [1:0] out_blue  = video_active ? blue  : 2'b00;
 
-    assign uo_out = {out_blue, out_green, out_red, vsync, hsync};
+    // Tiny Tapeout Specs
+    // uo_out[0] - R1
+    // uo_out[1] - G1 
+    // uo_out[2] - B1
+    // uo_out[3] - vsync
+    // uo_out[4] - R0
+    // uo_out[5] - G0
+    // uo_out[6] - B0
+    // uo_out[7] - hsync
+    
+    assign uo_out = {hsync, out_blue[0], out_green[0], out_red[0], vsync, out_blue[1], out_green[1], out_red[1]};
     assign uio_out = 8'h00;
     assign uio_oe  = 8'h00;
 
